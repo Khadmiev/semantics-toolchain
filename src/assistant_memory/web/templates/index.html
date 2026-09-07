@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Admin — Assistant Memory{% endblock %}
+{% block body %}
+<header>
+  <h1>Assistant Memory</h1>
+  <form method="post" action="/logout" style="margin:0">
+    <input type="hidden" name="csrf" value="{{ csrf_token }}">
+    <span class="muted">{{ user.label or user.google_sub }}{% if user.is_owner %} (owner){% endif %}</span>
+    <button type="submit">Log out</button>
+  </form>
+</header>
+<main>
+  <p>
+    {% if user.is_owner %}<a class="button" href="/invites">Invites</a>{% endif %}
+    <a class="button" href="/spaces">Spaces</a>
+    <a class="button" href="/credentials">Credentials</a>
+    <a class="button" href="/feed">Change feed</a>
+    {% if user.is_owner %}<a class="button" href="/proposals">Proposals</a>{% endif %}
+  </p>
+</main>
+{% endblock %}

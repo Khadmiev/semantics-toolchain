@@ -1,0 +1,14 @@
+semantics-toolchain
+Copyright 2026 Dmitry Khadmiev
+
+Unless otherwise noted, all original content in this repository, including
+source code, skill definitions, prompts, documentation, the conventions
+contract and the incident dossiers, is licensed under the Apache License,
+Version 2.0 (see LICENSE).
+
+Third-party quotations and other third-party materials remain subject to
+the rights of their respective owners and are not licensed under the Apache
+License 2.0 except where explicitly stated.
+
+This repository is published as the checkable half of an article. It does
+not accept contributions; fork it, change it, run it.

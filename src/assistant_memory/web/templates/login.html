@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Login — Assistant Memory{% endblock %}
+{% block body %}
+<header><h1>Assistant Memory</h1></header>
+<main>
+  {% if denied %}
+  <p class="muted">This Google account is not admitted. Ask the owner for an invite.</p>
+  {% endif %}
+  {% if configured %}
+  <p><a class="button" href="/login/google">Login with Google</a></p>
+  {% else %}
+  <p class="muted">
+    Google OAuth is not configured. Set <code>AM_GOOGLE_CLIENT_ID</code> and
+    <code>AM_GOOGLE_CLIENT_SECRET</code> (and restart) to enable login.
+  </p>
+  {% endif %}
+</main>
+{% endblock %}

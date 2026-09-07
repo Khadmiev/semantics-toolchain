@@ -1,0 +1,414 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Acceptance run record (B.13 D-1)",
+  "description": "One durable record per acceptance run. THE ALLOWLIST IS THIS SCHEMA: a field it does not enumerate is refused (additionalProperties is false at every level), and the SUCCESS conditions are encoded (the update walk is required, the step and day-after lists are non-empty, the final clean rerun passed, every compliance attestation is true) — a failed or empty run is not a valid record. Field VALUES are additionally checked against the exclusion set (hostnames and machine names, network addresses, tunnel domains, account emails, database names and identifiers, secret values, raw command output) by scripts/validate_acceptance_record.py — static patterns for the mechanically detectable classes plus the per-run --forbidden-file list (names from the run's environment map) for the name classes; the validator every export consumes before a record crosses the VM boundary. The records live under docs/acceptance/ in the WORKING repository and are private-surface evidence: never named in the publication's inclusion manifest.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "source_commit",
+    "variant",
+    "composed_by",
+    "clean_baseline",
+    "agent",
+    "steps",
+    "failures",
+    "day_after_walk",
+    "final_clean_rerun",
+    "compliance",
+    "update_fixture"
+  ],
+  "properties": {
+    "source_commit": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$",
+      "description": "The commit the run installed from."
+    },
+    "variant": {
+      "type": "string",
+      "enum": [
+        "local",
+        "remote",
+        "cloud"
+      ],
+      "description": "The deployment variant played (B-2)."
+    },
+    "composed_by": {
+      "type": "string",
+      "enum": [
+        "host",
+        "in_vm"
+      ],
+      "description": "Who composed this record (D-1): the host session over ssh (run 1 — nothing exported), or the in-VM agent (run 2 — the one sanctioned export)."
+    },
+    "clean_baseline": {
+      "type": "string",
+      "description": "The clean-baseline identity: the fresh VM image, or the verified pristine pre-install snapshot this run (or retry) was restored from. An identifier, never an address.",
+      "minLength": 1
+    },
+    "agent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "version"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "version": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "steps": {
+      "type": "array",
+      "description": "The per-step verification outcomes the runbook prescribes, in order. Non-empty: a record with no steps proves nothing.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "step",
+          "outcome"
+        ],
+        "properties": {
+          "step": {
+            "type": "string",
+            "description": "The runbook step (e.g. \"7 bring-up\").",
+            "minLength": 1
+          },
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "green",
+              "red"
+            ]
+          },
+          "note": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "minItems": 1
+    },
+    "failures": {
+      "type": "array",
+      "description": "Every failure or hesitation, each disposed as a fix — never an ad-hoc unblocking. Fix commits land FIRST; this record references their ids and is committed separately, afterwards.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "description",
+          "fix_commits"
+        ],
+        "properties": {
+          "description": {
+            "type": "string",
+            "minLength": 1
+          },
+          "fix_commits": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{40}$"
+            },
+            "minItems": 1
+          }
+        }
+      }
+    },
+    "day_after_walk": {
+      "type": "array",
+      "description": "The first-steps walk, one entry PER HANDOFF ITEM (D-3): walked or not, and what broke. walked=false is a LEGAL record state by the spec's own words ('walked or not, and what broke'): this record is the honest carrier; what a failed or unwalked item BLOCKS is C-3's finalization of the first-steps handoff, judged by that consumer — not by this validator. Non-empty: D-3 makes the walk mandatory.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "item",
+          "walked",
+          "outcome"
+        ],
+        "properties": {
+          "item": {
+            "type": "string",
+            "description": "The first-steps item (e.g. \"1 add a project\").",
+            "minLength": 1
+          },
+          "walked": {
+            "type": "boolean"
+          },
+          "outcome": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "minItems": 1
+    },
+    "update_fixture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "baseline",
+        "target"
+      ],
+      "description": "The self-cut release pair of the update walk (D-3): both fixture identities. Tags only carry fixture names; commits are ids.",
+      "properties": {
+        "baseline": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "tag",
+            "commit"
+          ],
+          "properties": {
+            "tag": {
+              "type": "string",
+              "minLength": 1
+            },
+            "commit": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{40}$"
+            }
+          }
+        },
+        "target": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "tag",
+            "commit"
+          ],
+          "properties": {
+            "tag": {
+              "type": "string",
+              "minLength": 1
+            },
+            "commit": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{40}$"
+            }
+          }
+        }
+      }
+    },
+    "final_clean_rerun": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "passed",
+        "note"
+      ],
+      "description": "The clean rerun that closed the run after the last fix.",
+      "properties": {
+        "passed": {
+          "type": "boolean",
+          "const": true,
+          "description": "Always true: a run whose clean rerun did not pass is red and produces no exportable record."
+        },
+        "note": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "compliance": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "One entry per numbered D-2 anti-confusion control — provable after the VM and the environment map are gone; redacted identities and outcomes only.",
+      "required": [
+        "control_1",
+        "control_2",
+        "control_3",
+        "control_4",
+        "control_5"
+      ],
+      "properties": {
+        "control_1": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "environment_map_existed",
+            "environment_map_timestamp"
+          ],
+          "description": "The environment map was written and in force — its existence and timestamp, NEVER its content.",
+          "properties": {
+            "environment_map_existed": {
+              "type": "boolean",
+              "const": true,
+              "description": "Always true: a false attestation is a red run, not a valid record."
+            },
+            "environment_map_timestamp": {
+              "type": "string",
+              "format": "date-time",
+              "minLength": 1
+            }
+          }
+        },
+        "control_2": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "no_host_commands_attested",
+            "evidence_redacted"
+          ],
+          "description": "No docker, database, or compose command was issued against the host during the run.",
+          "properties": {
+            "no_host_commands_attested": {
+              "type": "boolean",
+              "const": true,
+              "description": "Always true: a false attestation is a red run, not a valid record."
+            },
+            "evidence_redacted": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "control_3": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "vm_only_client_config",
+            "screaming_name_pattern_match",
+            "no_shared_tunnel",
+            "no_production_credential"
+          ],
+          "description": "All four subconditions, each attested separately, with redacted evidence.",
+          "properties": {
+            "vm_only_client_config": {
+              "type": "boolean",
+              "const": true,
+              "description": "Always true: a false attestation is a red run, not a valid record."
+            },
+            "screaming_name_pattern_match": {
+              "type": "string",
+              "description": "The redacted pattern match (e.g. \"*-DISPOSABLE\"), never the full name.",
+              "minLength": 1
+            },
+            "no_shared_tunnel": {
+              "type": "boolean",
+              "const": true,
+              "description": "Always true: a false attestation is a red run, not a valid record."
+            },
+            "no_production_credential": {
+              "type": "boolean",
+              "const": true,
+              "description": "Always true: a false attestation is a red run, not a valid record."
+            }
+          }
+        },
+        "control_4": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "vm_destroyed_at",
+            "export_exercised",
+            "validator_run",
+            "record_digest",
+            "nothing_else_crossed"
+          ],
+          "description": "Destruction + the export attestation: whether the one sanctioned export was exercised, the validator's run and result by name, the validated record's digest, and that no other VM artifact crossed the boundary.",
+          "properties": {
+            "vm_destroyed_at": {
+              "type": "string",
+              "format": "date-time",
+              "minLength": 1
+            },
+            "export_exercised": {
+              "type": "boolean"
+            },
+            "validator_run": {
+              "type": "string",
+              "description": "e.g. \"scripts/validate_acceptance_record.py: passed\"",
+              "minLength": 1
+            },
+            "record_digest": {
+              "type": "string",
+              "description": "The canonical record digest: sha256 over the canonical JSON encoding (UTF-8, sorted keys, compact separators) of this record with THIS FIELD's value replaced by the empty string — non-self-referential by construction; the validator recomputes and compares it. \"none\" only for a host-composed run with no export (enforced by the composed_by conditional)."
+            },
+            "nothing_else_crossed": {
+              "type": "boolean",
+              "const": true,
+              "description": "Always true: a false attestation is a red run, not a valid record."
+            }
+          }
+        },
+        "control_5": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "clean_baseline_restored"
+          ],
+          "description": "This run (and every retry) started from a newly created VM or a verified pristine snapshot restore.",
+          "properties": {
+            "clean_baseline_restored": {
+              "type": "boolean",
+              "const": true,
+              "description": "Always true: a false attestation is a red run, not a valid record."
+            }
+          }
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "composed_by": {
+            "const": "in_vm"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "compliance": {
+            "properties": {
+              "control_4": {
+                "properties": {
+                  "export_exercised": {
+                    "const": true
+                  },
+                  "record_digest": {
+                    "pattern": "^[0-9a-f]{64}$"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "composed_by": {
+            "const": "host"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "compliance": {
+            "properties": {
+              "control_4": {
+                "properties": {
+                  "export_exercised": {
+                    "const": false
+                  },
+                  "record_digest": {
+                    "const": "none"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

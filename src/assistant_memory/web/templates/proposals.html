@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Proposals — Assistant Memory{% endblock %}
+{% block body %}
+<header>
+  <h1>Proposals</h1>
+  <a class="button" href="/">← Admin</a>
+</header>
+<main>
+  <p class="muted">Mutations a low-trust client staged for your confirmation.
+  Approve applies them; reject discards (kept for audit).</p>
+
+  {% if proposals %}
+  <table cellpadding="6" style="border-collapse:collapse">
+    <tr>
+      <th align="left">Operation</th><th align="left">Target</th>
+      <th align="left">Sensitivity</th><th align="left">Mode</th>
+      <th align="left">Created</th><th></th>
+    </tr>
+    {% for p in proposals %}
+    <tr style="border-top:1px solid #eee">
+      <td>{{ p.op }}</td>
+      <td class="muted">{{ p.target_ref }}</td>
+      <td>{{ p.sensitivity or "—" }}</td>
+      <td>{{ p.mode }}</td>
+      <td class="muted">{{ p.created_at.strftime("%Y-%m-%d %H:%M") }}</td>
+      <td style="white-space:nowrap">
+        <form method="post" action="/proposals/{{ p.id }}/approve" style="display:inline; margin:0">
+          <input type="hidden" name="csrf" value="{{ csrf_token }}">
+          <button type="submit">Approve</button>
+        </form>
+        <form method="post" action="/proposals/{{ p.id }}/reject" style="display:inline; margin:0">
+          <input type="hidden" name="csrf" value="{{ csrf_token }}">
+          <button type="submit">Reject</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}
+  <p class="muted">No pending proposals.</p>
+  {% endif %}
+</main>
+{% endblock %}

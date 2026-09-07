@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}Spaces — Assistant Memory{% endblock %}
+{% block body %}
+<header>
+  <h1>Spaces</h1>
+  <a class="button" href="/">← Admin</a>
+</header>
+<main>
+  <h2>New space</h2>
+  <form method="post" action="/spaces">
+    <input type="hidden" name="csrf" value="{{ csrf_token }}">
+    <p><label>Name: <input name="name" required></label></p>
+    <p><label>Template: <input name="template" value="personal"></label></p>
+    <button type="submit">Create</button>
+  </form>
+
+  {% if conventions_home_malformed %}
+  <p style="color:#b00">The recorded conventions-home id is malformed:
+    <code>{{ conventions_home_malformed }}</code> — pick a space below and record it as
+    the conventions home to replace the broken value.</p>
+  {% endif %}
+
+  <h2>Your spaces</h2>
+  {% if spaces %}
+  <table cellpadding="6" style="border-collapse:collapse">
+    <tr><th align="left">Name</th><th align="left">Template</th><th align="left">Your role</th><th></th></tr>
+    {% for row in spaces %}
+    <tr style="border-top:1px solid #eee">
+      <td>{{ row.obj.name }}
+        {% if conventions_home_id and row.obj.id == conventions_home_id %}
+        <span class="muted">(conventions home)</span>
+        {% endif %}
+      </td>
+      <td class="muted">{{ row.obj.template }}</td>
+      <td>{{ row.permission }}</td>
+      <td><a href="/spaces/{{ row.obj.id }}">manage →</a>
+        {% if user.is_owner and (not conventions_home_id or row.obj.id != conventions_home_id) %}
+        <form method="post" action="/spaces/{{ row.obj.id }}/set-conventions-home"
+              style="display:inline" onsubmit="return confirm('Record this space as the conventions home?')">
+          <input type="hidden" name="csrf" value="{{ csrf_token }}">
+          <button type="submit">set as conventions home</button>
+        </form>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}
+  <p class="muted">No spaces yet.</p>
+  {% endif %}
+</main>
+{% endblock %}

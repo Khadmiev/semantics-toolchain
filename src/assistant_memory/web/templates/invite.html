@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Invite — Assistant Memory{% endblock %}
+{% block body %}
+<header><h1>Assistant Memory</h1></header>
+<main>
+  {% if valid %}
+    <p>You've been invited. Sign in with Google to accept.</p>
+    {% if configured %}
+    <p><a class="button" href="/login/google">Accept &amp; sign in with Google</a></p>
+    {% else %}
+    <p class="muted">Login is not configured yet — ask the owner.</p>
+    {% endif %}
+  {% else %}
+    <p class="muted">This invite link is invalid, already used, or expired.</p>
+  {% endif %}
+</main>
+{% endblock %}

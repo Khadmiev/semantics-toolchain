@@ -1,0 +1,124 @@
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    container_name: assistant_memory_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: am
+      POSTGRES_PASSWORD: am
+      POSTGRES_DB: assistant_memory
+    ports:
+      # Host 5433 to avoid clashing with a native Postgres on 5432; bound to the
+      # loopback interface only, so the database is never reachable from outside the
+      # host (the app reaches it over the compose network, tests over localhost).
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U am -d assistant_memory"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  app:
+    # The executing build identity (B.13 A-4): passing the commit at build time is a
+    # REQUIRED input of the release capture/apply operation —
+    #   $env:GIT_COMMIT = git rev-parse HEAD; docker compose build app
+    # An image built without it has NO executing identity: the install status reports
+    # the named refusal and the instance cannot reach INSTALLED (never a silent pass).
+    build:
+      context: .
+      args:
+        GIT_COMMIT: ${GIT_COMMIT:-}
+        # Optional: the release tag, when the checkout sits on one (B.13 A-4) —
+        #   GIT_TAG=$(git describe --tags --exact-match 2>/dev/null || true)
+        GIT_TAG: ${GIT_TAG:-}
+    container_name: assistant_memory_app
+    depends_on:
+      db:
+        condition: service_healthy
+    # Brings AM_GOOGLE_*, AM_SESSION_SECRET, AM_OWNER_EMAIL, AM_BASE_URL from .env.
+    env_file:
+      - .env
+    environment:
+      # Inside the compose network the DB is reached by service name, not host 5433.
+      AM_DATABASE_URL: postgresql+asyncpg://am:am@db:5432/assistant_memory
+      # Cache the embedding model on a named volume (IR-3), so it downloads once.
+      HF_HOME: /models/hf
+    ports:
+      - "8000:8000"
+    volumes:
+      - hfcache:/models/hf
+    restart: unless-stopped
+    # Healthy == LIVE (B.13 A-3): the process is up and serving the INSTALL SURFACE.
+    # Probing readiness here was the recorded fresh-remote-install deadlock (Task
+    # eeec3714): the tunnel waited for a healthy app while health could not arrive
+    # without the owner login that only the tunnel exposes. The A-2 gate — not this
+    # healthcheck — is what refuses substantive requests until stages 1-4 hold, so
+    # the tunnel may rise immediately and expose exactly the install actions.
+    # Readiness stays observable at /health/ready for the runbook.
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 40s
+
+  # Deployment C (remote/always-on): `docker compose --profile remote up -d` publishes
+  # the app at a stable public https URL. Local (A) omits the profile and this service.
+  ngrok:
+    image: ngrok/ngrok:latest
+    container_name: assistant_memory_ngrok
+    profiles: ["remote"]
+    depends_on:
+      app:
+        condition: service_healthy
+    command: ["http", "app:8000", "--domain=${AM_TUNNEL_DOMAIN}"]
+    environment:
+      NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN}
+    restart: unless-stopped
+
+  # Tunnel self-heal (the 2026-07-09 incident: agent process alive, cloud session
+  # silently dead). `restart: unless-stopped` never fires (the process doesn't exit),
+  # and the agent's own :4040 API keeps listing the tunnel, so the only honest
+  # detector is an END-TO-END probe of the public URL through the ngrok edge.
+  # The watchdog probes it once a minute and restarts the ngrok container after 3
+  # consecutive failures (Docker Desktop proxies the socket mount). A dead app
+  # (502 over a live tunnel) also trips it — that restart is harmless churn while
+  # the app's own healthcheck/restart-policy recovers the app itself.
+  ngrok_watchdog:
+    image: docker:28-cli
+    container_name: assistant_memory_ngrok_watchdog
+    profiles: ["remote"]
+    depends_on:
+      - ngrok
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      PROBE_URL: https://${AM_TUNNEL_DOMAIN}/health
+    restart: unless-stopped
+    entrypoint: ["/bin/sh", "-c"]
+    # Inline (not a mounted .sh) so a Windows checkout can't CRLF-break it.
+    command:
+      - |
+        FAILS=0
+        while true; do
+          if wget -q -T 15 -O /dev/null --header 'ngrok-skip-browser-warning: 1' "$$PROBE_URL"; then
+            [ "$$FAILS" -gt 0 ] && echo "$$(date -u '+%F %T') probe recovered"
+            FAILS=0
+          else
+            FAILS=$$((FAILS+1))
+            echo "$$(date -u '+%F %T') public probe FAILED ($$FAILS/3)"
+            if [ "$$FAILS" -ge 3 ]; then
+              echo "$$(date -u '+%F %T') restarting assistant_memory_ngrok"
+              docker restart assistant_memory_ngrok
+              FAILS=0
+              sleep 180
+            fi
+          fi
+          sleep 60
+        done
+
+volumes:
+  pgdata:
+  hfcache:

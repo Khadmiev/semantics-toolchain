@@ -1,0 +1,69 @@
+[project]
+name = "semantics-toolchain"
+version = "0.1.0"
+authors = [{ name = "Dmitry Khadmiev" }]
+license = "Apache-2.0"
+readme = "README.md"
+description = "A toolchain for treating semantics as source: versioned meaning, gated lowering, independent review, semantic maps."
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.34",
+    "sqlalchemy[asyncio]>=2.0",
+    "asyncpg>=0.30",
+    "alembic>=1.14",
+    "pydantic-settings>=2.7",
+    "pgvector>=0.3",
+    # Capped at the major the code is written against: mcp 2.x dropped
+    # Server.list_tools, and a fresh resolve (which the public export does by
+    # regenerating its own lock) picked it up and the package stopped importing.
+    # Found by running the exported tree's own suite, 2026-09-05.
+    "mcp>=1.28.1,<2",
+    "authlib>=1.7.2",
+    "itsdangerous>=2.2.0",
+    "jinja2>=3.1.6",
+    "httpx>=0.28.1",
+    "croniter>=6.2.3",
+    "openai>=2.44.0",
+    "tzdata>=2026.2",
+    # B.13 D-1: the acceptance-record validator (scripts/validate_acceptance_record.py)
+    # runs inside the shipped container, so its schema engine is a main dependency.
+    "jsonschema>=4.23",
+]
+
+[project.optional-dependencies]
+embeddings = [
+    "sentence-transformers>=3.0",
+]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.9",
+    "pytest>=8.3",
+    "pytest-asyncio>=0.25",
+    "httpx>=0.28",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/assistant_memory", "src/review_harness"]
+
+[tool.ruff]
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+# B008: FastAPI's Depends()/dependency idiom puts calls in argument defaults.
+ignore = ["B008"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+# "." puts the repository root on the path so that `from tests.cycle_helpers import ...`
+# resolves under a bare `pytest` as well as under `python -m pytest`. Without it a clone
+# that runs the documented command gets eleven collection errors and no explanation.
+pythonpath = ["src", "."]

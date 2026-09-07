@@ -1,0 +1,38 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Env / secrets — any .env variant, not only `.env`
+.env
+.env.*
+*.local
+
+# Database backups carry personal data and tokens
+backups/
+*.dump
+
+# Review-harness state that belongs to one machine and one operator:
+# run catalogs (the critic's passes verbatim), the machine profile, the
+# forwarding buffer, the compiled operator-profile cache.
+docs/review/*/
+.review_harness/
+docs/review/operator_profile.md
+
+# The installing agent's observations about the operator (seeds the profile
+# as proposals; never enters history, may never carry secrets)
+OPERATOR_OBSERVATIONS.md
+
+# Editors / OS
+.DS_Store
+.idea/
+.vscode/
+
+# Build
+dist/
+build/

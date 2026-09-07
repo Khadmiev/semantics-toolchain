@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Change feed — Assistant Memory{% endblock %}
+{% block body %}
+<header>
+  <h1>Change feed</h1>
+  <a class="button" href="/">← Admin</a>
+</header>
+<main>
+  <p class="muted">Recent writes the assistant made in your spaces. High-sensitivity
+  rows are highlighted. Undo reverts the node's last change (everything is reversible).</p>
+
+  <form method="get" action="/feed">
+    <label>Filter by author:
+      <select name="author" onchange="this.form.submit()">
+        <option value="">all</option>
+        {% for a in authors %}
+        <option value="{{ a.id }}" {% if a.id|string == author %}selected{% endif %}>{{ a.label }}</option>
+        {% endfor %}
+      </select>
+    </label>
+  </form>
+
+  {% if events %}
+  <table cellpadding="6" style="border-collapse:collapse; margin-top:1rem">
+    <tr>
+      <th align="left">Node</th><th align="left">Type</th><th align="left">Author</th>
+      <th align="left">When</th><th align="left">Sensitivity</th><th align="left">State</th><th></th>
+    </tr>
+    {% for e in events %}
+    <tr style="border-top:1px solid #eee; {% if e.high %}background:#fff4f4{% endif %}">
+      <td>{{ e.node.label or e.node.id }}</td>
+      <td class="muted">{{ e.node.type }}</td>
+      <td>{{ e.author_label }}</td>
+      <td class="muted">{{ e.changed_at.strftime("%Y-%m-%d %H:%M") }}</td>
+      <td>{{ e.sensitivity }}{% if e.high %} ⚠{% endif %}</td>
+      <td>{% if e.deleted %}deleted{% else %}active{% endif %}</td>
+      <td>
+        <form method="post" action="/feed/undo/{{ e.node.id }}" style="margin:0">
+          <input type="hidden" name="csrf" value="{{ csrf_token }}">
+          <button type="submit">Undo</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}
+  <p class="muted">No changes yet.</p>
+  {% endif %}
+</main>
+{% endblock %}

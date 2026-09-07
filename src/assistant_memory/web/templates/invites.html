@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Invites — Assistant Memory{% endblock %}
+{% block body %}
+<header>
+  <h1>Invites</h1>
+  <a class="button" href="/">← Admin</a>
+</header>
+<main>
+  {% if new_link %}
+  <p><strong>Invite link (shown once — copy it now):</strong></p>
+  <p><code>{{ new_link }}</code></p>
+  {% endif %}
+
+  <h2>New invite</h2>
+  <form method="post" action="/invites">
+    <input type="hidden" name="csrf" value="{{ csrf_token }}">
+    <p>
+      <label>Pin to email (optional): <input type="email" name="email" placeholder="guest@example.com"></label>
+    </p>
+    <p>
+      <label>Valid for (days): <input type="number" name="ttl_days" value="7" min="0" style="width:5rem"></label>
+    </p>
+    <button type="submit">Generate invite</button>
+  </form>
+
+  <h2>Existing</h2>
+  {% if invites %}
+  <table cellpadding="6" style="border-collapse:collapse">
+    <tr><th align="left">Email</th><th align="left">Status</th><th align="left">Created</th><th align="left">Expires</th></tr>
+    {% for row in invites %}
+    <tr style="border-top:1px solid #eee">
+      <td>{{ row.obj.email or "—" }}</td>
+      <td>{{ row.status }}</td>
+      <td class="muted">{{ row.obj.created_at.strftime("%Y-%m-%d %H:%M") }}</td>
+      <td class="muted">{{ row.obj.expires_at.strftime("%Y-%m-%d %H:%M") if row.obj.expires_at else "never" }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}
+  <p class="muted">No invites yet.</p>
+  {% endif %}
+</main>
+{% endblock %}
